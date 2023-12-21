@@ -22,6 +22,8 @@ package rpc
 import (
 	"context"
 	"net"
+	"os"
+	"syscall"
 	"time"
 
 	"github.com/Microsoft/go-winio"
@@ -42,3 +44,27 @@ func newIPCConnection(ctx context.Context, endpoint string) (net.Conn, error) {
 	defer cancel()
 	return winio.DialPipeContext(ctx, endpoint)
 }
+
+// -------netutil--------
+const _WSAEMSGSIZE = syscall.Errno(10040)
+
+// isPacketTooBig reports whether err indicates that a UDP packet didn't
+// fit the receive buffer. On Windows, WSARecvFrom returns
+// code WSAEMSGSIZE and no data if this happens.
+func isPacketTooBig(err error) bool {
+	if opErr, ok := err.(*net.OpError); ok {
+		if scErr, ok := opErr.Err.(*os.SyscallError); ok {
+			return scErr.Err == _WSAEMSGSIZE
+		}
+		return opErr.Err == _WSAEMSGSIZE
+	}
+	return false
+} // -------netutil--------
+
+// NOTwindows
+// isPacketTooBig reports whether err indicates that a UDP packet didn't
+// fit the receive buffer. There is no such error on
+// non-Windows platforms.
+// func isPacketTooBig(err error) bool {
+// 	return false
+// }

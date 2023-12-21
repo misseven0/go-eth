@@ -20,15 +20,31 @@ import (
 	"context"
 	"net"
 
-	"github.com/ethereum/go-ethereum/p2p/netutil"
+	// "github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/misseven0/go-eth/log"
 )
+
+// IsTemporaryError checks whether the given error should be considered temporary.
+func IsTemporaryError(err error) bool {
+	tempErr, ok := err.(interface {
+		Temporary() bool
+	})
+	return ok && tempErr.Temporary() || isPacketTooBig(err)
+}
+
+// IsTimeout checks whether the given error is a timeout.
+func IsTimeout(err error) bool {
+	timeoutErr, ok := err.(interface {
+		Timeout() bool
+	})
+	return ok && timeoutErr.Timeout()
+}
 
 // ServeListener accepts connections on l, serving JSON-RPC on them.
 func (s *Server) ServeListener(l net.Listener) error {
 	for {
 		conn, err := l.Accept()
-		if netutil.IsTemporaryError(err) {
+		if IsTemporaryError(err) {
 			log.Warn("RPC accept error", "err", err)
 			continue
 		} else if err != nil {
